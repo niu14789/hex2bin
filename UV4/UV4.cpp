@@ -30,14 +30,10 @@ static char name_buffer[4][200];
 /*---------------------------------*/
 static unsigned int command = 0;
 /*---------------------------------*/
+static unsigned int offset = 0;
+/*---------------------------------*/
 int _tmain(int argc, _TCHAR* argv[])
 {
-	if( argc != 4 )
-	{
-		printf("param error %d\r\n",argc);
-		/*------------------*/
-		return (-1);
-	}
 	/*------------------*/
   	for(int i = 1;i<argc;i++)
 	{
@@ -58,8 +54,21 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("param error:3\r\n");
+		printf("hex2bin:version:0.1.2_build_20180913\r\n");
+		printf("[-v] [-offset] [addr]\r\n");
+		printf("[-f]\r\n");
+		printf("[-b]\r\n");
+		printf("[-h]\r\n");
 		return (-1);
+	}
+	/* get config param */
+	if( strcmp(name_buffer[3],"-offset") == 0 )
+	{
+		if( sscanf(name_buffer[4],"0x%x",&offset) != 1 )
+		{
+			printf("Can not transfer offset addr : %s  0x%x",name_buffer[3],offset);
+			return (-1);
+		}
 	}
 	/*--------------------*/
 	hex2bin(name_buffer[0],name_buffer[1],command);
@@ -164,16 +173,19 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 				return;
 			}
 			/*--------------------------*/
-			fwrite(write_buffer,1,write_count,fp_create);
-			/*--------------------------*/
-			fclose(fp_create);
+			if( offset < write_count )
+			{
+				fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
+				/*--------------------------*/
+				fclose(fp_create);
+			}
 			/*-----------------*/
 			if( command == 1 )
 			{
-			   printf("ok %d %s\r\n",write_count,create_buffer);
+			   printf("ok %d 0x%x %s\r\n",write_count,offset,create_buffer);
 			}else
 			{
-			   printf("ok %d \r\n",write_count);
+			   printf("ok %d 0x%x\r\n",write_count,offset);
 			}
 			/* end */
 			break;
