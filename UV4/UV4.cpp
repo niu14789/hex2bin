@@ -26,11 +26,16 @@ static unsigned char read_buffer[10*1024*1024];
 static unsigned char write_buffer[2*1024*1024];
 static unsigned int write_count = 0;
 /*---------------------------------*/
-static char name_buffer[4][200];
+static char name_buffer[20][200];
 /*---------------------------------*/
 static unsigned int command = 0;
 /*---------------------------------*/
 static unsigned int offset = 0;
+/*---------------------------------*/
+static unsigned char offset_enable = 0;
+static unsigned char merge_cmd_type = 0;
+static unsigned int merge_offset = 0;
+static char * irom_path;
 /*---------------------------------*/
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -56,18 +61,74 @@ int _tmain(int argc, _TCHAR* argv[])
 	{
 		printf("hex2bin:version:0.1.2_build_20180913\r\n");
 		printf("[-v] [-offset] [addr]\r\n");
-		printf("[-f]\r\n");
-		printf("[-b]\r\n");
-		printf("[-h]\r\n");
+		printf("[-f] [-offset] [addr]\r\n");
+		printf("[-b] [-offset] [addr]\r\n");
+		printf("[-h] [-offset] [addr] [-option] [addr] [path]\r\n");
 		return (-1);
 	}
 	/* get config param */
 	if( strcmp(name_buffer[3],"-offset") == 0 )
 	{
+		offset_enable = 1;
+		/*----------------*/
 		if( sscanf(name_buffer[4],"0x%x",&offset) != 1 )
 		{
 			printf("Can not transfer offset addr : %s  0x%x",name_buffer[3],offset);
 			return (-1);
+		}
+	}
+	/*-----------------------*/
+	if( command == 4 )
+	{
+		if( offset_enable == 0 )
+		{
+			if( strcmp(name_buffer[3],"-d") == 0 )//delete
+			{
+				merge_cmd_type = 1;
+			}else if( strcmp(name_buffer[3],"-dv") == 0 )//delete and version
+			{
+				merge_cmd_type = 2;
+			}else if( strcmp(name_buffer[3],"-v") == 0 )//version
+			{
+				merge_cmd_type = 3;
+			}else
+			{
+				printf("[-h] doesnot has this command %s\r\n",name_buffer[3]);
+				return (-1);
+			}
+			/* get offset */
+			if( sscanf(name_buffer[4],"0x%x",&merge_offset) != 1 )
+			{
+				printf("Can not transfer merge_offset addr : %s  0x%x",name_buffer[4],merge_offset);
+				return (-1);
+			}
+
+			irom_path = name_buffer[5];
+
+		}else
+		{
+            if( strcmp(name_buffer[5],"-d") == 0 )//delete
+			{
+				merge_cmd_type = 1;
+			}else if( strcmp(name_buffer[5],"-dv") == 0 )//delete and version
+			{
+				merge_cmd_type = 2;
+			}else if( strcmp(name_buffer[5],"-v") == 0 )//version
+			{
+				merge_cmd_type = 3;
+			}else
+			{
+				printf("[-h] doesnot has this command %s\r\n",name_buffer[5]);
+				return (-1);
+			}
+			/* get offset */
+			if( sscanf(name_buffer[6],"0x%x",&merge_offset) != 1 )
+			{
+				printf("Can not transfer merge_offset addr : %s  0x%x",name_buffer[6],merge_offset);
+				return (-1);
+			}
+
+			irom_path = name_buffer[7];
 		}
 	}
 	/*--------------------*/
@@ -82,7 +143,7 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 	unsigned int len;
 	FILE * fp_create = NULL;
 	unsigned int file_name_cnt = 0;
-
+	int len_rb = 0;
 	fopen_s(&fp,hex_path,"rb");
 
 	if(fp == NULL)
@@ -148,7 +209,7 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 			/*-----------------------*/
 			memset(create_buffer,0,sizeof(create_buffer));
 			/*-----------------------*/
-			if( command == 1 )
+			if( command == 1 || merge_cmd_type == 2 || merge_cmd_type == 3 )
 			{
 				version = get_version(write_buffer,write_count);
 				/*---------------------------------------*/
@@ -175,17 +236,56 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 			/*--------------------------*/
 			if( offset < write_count )
 			{
-				fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
+				/*--------------------------*/
+				if( command == 4 )
+				{
+					FILE * rb = fopen(irom_path,"rb");
+
+					if( rb == NULL )
+					{
+						printf("open file error %s\r\n",irom_path);
+						fclose(fp_create);
+						return;
+					}
+					/* read and write */
+					len_rb = fread(read_buffer,1,sizeof(read_buffer),rb);
+				}
+				/*--------------------------------------*/
+				memcpy(&write_buffer[offset+merge_offset],read_buffer,len_rb);
+				/*--------------------------------------*/
+				fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
 				/*--------------------------*/
 				fclose(fp_create);
 			}
 			/*-----------------*/
 			if( command == 1 )
 			{
-			   printf("ok %d 0x%x %s\r\n",write_count,offset,create_buffer);
-			}else
+			   if( offset )
+			   {
+				   printf("ok %d 0x%x %s\r\n",write_count,offset,create_buffer);
+			   }else
+			   {
+			       printf("ok %d %s\r\n",write_count,create_buffer);
+			   }
+			}else if( command == 4 )
 			{
-			   printf("ok %d 0x%x\r\n",write_count,offset);
+			   if( offset )
+			   {
+				   printf("ok %d 0x%x 0x%x %s\r\n",merge_offset + len_rb,offset,merge_offset,create_buffer);
+			   }else
+			   {
+			       printf("ok %d 0x%x %s\r\n", merge_offset + len_rb ,merge_offset,create_buffer);
+			   }
+			}
+			else
+			{
+			   if( offset )
+			   {
+			      printf("ok %d 0x%x %s\r\n",write_count,offset,bin_path);
+			   }else
+			   {
+                  printf("ok %d %s\r\n",write_count,bin_path);
+			   }
 			}
 			/* end */
 			break;
