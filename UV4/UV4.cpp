@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "string.h"
+#include "afxdialogex.h"
 
 int read_one_bit(unsigned char c,unsigned int * data_len , unsigned int * data_addr , unsigned char * data_type , unsigned char * data );
 void hex2bin(char * hex_path,char * bin_path,unsigned int);
@@ -59,7 +60,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:0.1.2_build_20180913\r\n");
+		printf("hex2bin:version:0.1.9_build_20181052\r\n");
 		printf("[-v] [-offset] [addr]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
@@ -249,20 +250,51 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					}
 					/* read and write */
 					len_rb = fread(read_buffer,1,sizeof(read_buffer),rb);
+					/*----------------*/
+					fclose(rb);
 				}
 				/*--------------------------------------*/
-				memcpy(&write_buffer[offset+merge_offset],read_buffer,len_rb);
-				/*--------------------------------------*/
-				fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
-				/*--------------------------*/
+				if( command == 4 )
+				{
+					if( merge_offset + len_rb < sizeof(write_buffer) - offset )
+					{
+						memcpy(&write_buffer[offset+merge_offset],read_buffer,len_rb);
+					}else
+					{
+						printf("merge offset and len are override\r\n");
+						return;
+					}
+					/*--------------------------------------*/
+					if( write_count - offset < merge_offset )
+					{
+						/*--------------------------------------*/
+						fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
+						/*--------------------------*/
+					}else
+					{
+						printf("merge offset postion error 0x%X 0x%X\r\n",write_count - offset,merge_offset);
+						return;
+					}
+				}else
+				{
+					/*--------------------------------------*/
+					fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
+					/*--------------------------*/
+				}
+				/* close */
 				fclose(fp_create);
+				/*--------------------------------------*/
+			}else
+			{
+				printf("offset is override\r\n");
+				return;
 			}
 			/*-----------------*/
 			if( command == 1 )
 			{
 			   if( offset )
 			   {
-				   printf("ok %d 0x%x %s\r\n",write_count,offset,create_buffer);
+				   printf("ok %d 0x%x %s\r\n",write_count - offset,offset,create_buffer);
 			   }else
 			   {
 			       printf("ok %d %s\r\n",write_count,create_buffer);
@@ -276,12 +308,25 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 			   {
 			       printf("ok %d 0x%x %s\r\n", merge_offset + len_rb ,merge_offset,create_buffer);
 			   }
+			   /*------------------------*/
+			   if( merge_cmd_type == 1 || merge_cmd_type == 2 )
+			   {
+					USES_CONVERSION;
+					/*----------------*/
+					CString dds = A2T(irom_path);
+					/*----------------*/
+					if( DeleteFile(dds) == 0 )
+					{
+						//printf("delete error\r\n");
+					}
+			   }
+			   /*------------------------*/
 			}
 			else
 			{
 			   if( offset )
 			   {
-			      printf("ok %d 0x%x %s\r\n",write_count,offset,bin_path);
+			      printf("ok %d 0x%x %s\r\n",write_count - offset,offset,bin_path);
 			   }else
 			   {
                   printf("ok %d %s\r\n",write_count,bin_path);
