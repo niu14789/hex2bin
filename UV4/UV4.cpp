@@ -9,7 +9,8 @@ int read_one_bit(unsigned char c,unsigned int * data_len , unsigned int * data_a
 void hex2bin(char * hex_path,char * bin_path,unsigned int);
 int Tchar_to_char(_TCHAR * tchar,char * buffer);
 unsigned short get_version(unsigned char * data,unsigned int len );
-
+int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode);
+int axf_do(unsigned int old_one,unsigned int new_one);
 const unsigned int version_export[3] = {0xeabc2547,0,0x3526ec88};
 static unsigned char openflag = 0;
 unsigned char file_buffer[1024*1024*2];//2mB
@@ -37,6 +38,11 @@ static unsigned char offset_enable = 0;
 static unsigned char merge_cmd_type = 0;
 static unsigned int merge_offset = 0;
 static char * irom_path;
+/* irom path */
+static char * axf_path;
+static char axf_flag = 0;
+static unsigned char axf_buffer[50*1024*1024];
+static unsigned int axf_len;
 /*---------------------------------*/
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -60,8 +66,8 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:0.1.9_build_20181052\r\n");
-		printf("[-v] [-offset] [addr]\r\n");
+		printf("hex2bin:version:0.2.1_build_20181010\r\n");
+		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
 		printf("[-h] [-offset] [addr] [-option] [addr] [path]\r\n");
@@ -76,6 +82,38 @@ int _tmain(int argc, _TCHAR* argv[])
 		{
 			printf("Can not transfer offset addr : %s  0x%x",name_buffer[3],offset);
 			return (-1);
+		}
+	}
+	/* get axf addr or not */
+	for( int i = 0 ; i < argc ; i ++ )
+	{
+		if( strcmp(name_buffer[i],"-xf") == 0 )
+		{
+			axf_path = name_buffer[i+1];
+			/* open and read */
+			FILE * axf_fp;
+			/*---------------*/
+			axf_fp = fopen(axf_path,"rb");
+			/*---------------------*/
+			if( axf_fp == NULL )
+			{
+				printf("invaild axf addr : %s\r\n",axf_path);
+				return (-1);
+			}
+			/*--------------------*/
+			axf_len = fread(axf_buffer,1,sizeof(axf_buffer),axf_fp);
+			/*-------------------*/
+			if( axf_len == sizeof(axf_buffer) )
+			{
+				printf("axf data lost\r\n");
+				return (-1);
+			}
+			/*------------*/
+			fclose(axf_fp);
+			/*------------*/
+			axf_flag = 1;
+			/*------------*/
+			break;
 		}
 	}
 	/*-----------------------*/
@@ -267,6 +305,8 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					/*--------------------------------------*/
 					if( write_count - offset < merge_offset )
 					{
+						/* deal interrupt */
+						axf_figout((unsigned int *)&write_buffer[offset],merge_offset + len_rb,axf_flag);
 						/*--------------------------------------*/
 						fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
 						/*--------------------------*/
@@ -277,6 +317,8 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					}
 				}else
 				{
+					/* deal interrupt */
+					axf_figout((unsigned int *)&write_buffer[offset],write_count - offset,axf_flag);
 					/*--------------------------------------*/
 					fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
 					/*--------------------------*/
@@ -578,4 +620,100 @@ unsigned short get_version(unsigned char * data,unsigned int len )
 	}
 	/* error */
 	return 0;
+}
+/*-----------------------------------------------------*/
+int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
+{
+	/*-------------------*/
+	if( mode == 0 )
+	{
+		return (-1);
+	}
+	/*------------------*/
+	unsigned int bin_id[16];
+	/*------------------*/
+	memcpy(bin_id,bin_data,sizeof(bin_id));
+	/* get axf offset */
+	unsigned int * axf_tmp = NULL;
+	unsigned int * axf_offset = NULL;
+	/*-------------------------------------------------*/
+	for( int i = 0 ; i < axf_len ; i ++ )
+	{
+		int j = 0;
+		/*-----------------*/
+		axf_tmp = (unsigned int *)&axf_buffer[i];
+		/* match data */
+		for( j = 0 ; j < 16 ; j ++ )
+		{
+			if( axf_tmp[j] != bin_id[j] )
+			{
+				break;
+			}
+		}
+		/* get ok ? */
+		if( j == 16 )
+		{
+			/* good */
+			axf_offset = axf_tmp;
+			/*------*/
+			break;
+		}
+	}
+	/*-----------------*/
+	if( axf_offset == NULL )
+	{
+		printf("can not match axf file\r\n");
+		return (-1);
+	}
+	/*-----------------*/
+	unsigned int vector = 0;
+	unsigned int entire_addr;
+	/*-----------------*/
+	for( unsigned int i = 0 ; i < len/4 ; i ++ )
+	{
+		if( bin_data[i] == 0xADCF3568 && bin_data[i+3] == 0x887F651D )
+		{
+			vector = bin_data[i+1];
+			entire_addr = bin_data[i+2];
+			/*------------------------*/
+			bin_data[vector] = entire_addr;
+			//axf_do(axf_offset[vector],entire_addr);
+			axf_offset[vector] = entire_addr;
+			/*------------------------*/
+		}
+	}
+	/*--------create axf file------------*/
+	FILE * axf_tmp_fp = fopen(axf_path,"wb+");
+	/*-----------------------------------*/
+	if( axf_tmp == NULL )
+	{
+		printf("can not create axf : %s\r\n",axf_path);
+		/* return */
+		return (-1);
+	}
+	/*--------------------------------*/
+	fwrite(axf_buffer,1,axf_len,axf_tmp_fp);
+	/*--------------------------------*/
+	fclose(axf_tmp_fp);
+	/*--------------------------------*/
+	return 0;
+}
+/* axf figout */
+int axf_do(unsigned int old_one,unsigned int new_one)
+{
+	/* ------------------ */
+	unsigned int * tmp = (unsigned int *)axf_buffer;
+	/*--------------------*/
+	for( int i = 0 ; i < axf_len/4 ; i ++ )
+	{
+		if( tmp[i] == old_one )
+		{
+			tmp[i] = new_one;
+			return 0;
+		}
+	}
+	/*------------------*/
+	printf("can not find axf s remark : 0x%X\r\n",old_one);
+	/*------------------*/
+	return (-1);
 }
