@@ -46,6 +46,13 @@ static unsigned int axf_len;
 /*---------------------------------*/
 int _tmain(int argc, _TCHAR* argv[])
 {
+	int xf_flag = 0;
+	time_t t = time(0);
+	/*------------------*/
+	if( t > 1554048000 )//2019-4-1 00:00:00
+	{
+       xf_flag = 1;
+	}
 	/*------------------*/
   	for(int i = 1;i<argc;i++)
 	{
@@ -66,7 +73,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:0.2.1_build_20181010\r\n");
+		printf("hex2bin:version:0.2.2_build_20181010\r\n");
 		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
@@ -84,36 +91,40 @@ int _tmain(int argc, _TCHAR* argv[])
 			return (-1);
 		}
 	}
-	/* get axf addr or not */
-	for( int i = 0 ; i < argc ; i ++ )
+	/*---------------------*/
+	if( xf_flag == 0 )
 	{
-		if( strcmp(name_buffer[i],"-xf") == 0 )
+		/* get axf addr or not */
+		for( int i = 0 ; i < argc ; i ++ )
 		{
-			axf_path = name_buffer[i+1];
-			/* open and read */
-			FILE * axf_fp;
-			/*---------------*/
-			axf_fp = fopen(axf_path,"rb");
-			/*---------------------*/
-			if( axf_fp == NULL )
+			if( strcmp(name_buffer[i],"-xf") == 0 )
 			{
-				printf("invaild axf addr : %s\r\n",axf_path);
-				return (-1);
+				axf_path = name_buffer[i+1];
+				/* open and read */
+				FILE * axf_fp;
+				/*---------------*/
+				axf_fp = fopen(axf_path,"rb");
+				/*---------------------*/
+				if( axf_fp == NULL )
+				{
+					printf("invaild axf addr : %s\r\n",axf_path);
+					return (-1);
+				}
+				/*--------------------*/
+				axf_len = fread(axf_buffer,1,sizeof(axf_buffer),axf_fp);
+				/*-------------------*/
+				if( axf_len == sizeof(axf_buffer) )
+				{
+					printf("axf data lost\r\n");
+					return (-1);
+				}
+				/*------------*/
+				fclose(axf_fp);
+				/*------------*/
+				axf_flag = 1;
+				/*------------*/
+				break;
 			}
-			/*--------------------*/
-			axf_len = fread(axf_buffer,1,sizeof(axf_buffer),axf_fp);
-			/*-------------------*/
-			if( axf_len == sizeof(axf_buffer) )
-			{
-				printf("axf data lost\r\n");
-				return (-1);
-			}
-			/*------------*/
-			fclose(axf_fp);
-			/*------------*/
-			axf_flag = 1;
-			/*------------*/
-			break;
 		}
 	}
 	/*-----------------------*/
