@@ -5,6 +5,7 @@
 #include "string.h"
 #include "afxdialogex.h"
 
+void checksum_cali(unsigned char * data,unsigned int len,unsigned int * sum32,unsigned int * sum8);
 int read_one_bit(unsigned char c,unsigned int * data_len , unsigned int * data_addr , unsigned char * data_type , unsigned char * data );
 void hex2bin(char * hex_path,char * bin_path,unsigned int);
 int Tchar_to_char(_TCHAR * tchar,char * buffer);
@@ -44,6 +45,8 @@ static char axf_flag = 0;
 static unsigned char axf_buffer[50*1024*1024];
 static unsigned int axf_len;
 /*---------------------------------*/
+static unsigned char flag_ck = 0;
+/* enable */
 int _tmain(int argc, _TCHAR* argv[])
 {
 	/*------------------*/
@@ -66,7 +69,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:0.2.1_build_20181010\r\n");
+		printf("hex2bin:version:0.2.2_build_20181210\r\n");
 		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
@@ -113,6 +116,15 @@ int _tmain(int argc, _TCHAR* argv[])
 			/*------------*/
 			axf_flag = 1;
 			/*------------*/
+			break;
+		}
+	}
+	/*-----------------------*/
+	for( int i = 0 ; i < argc ; i ++ )
+	{
+		if( strcmp(name_buffer[i],"-ck") == 0 )
+		{
+			flag_ck = 1;
 			break;
 		}
 	}
@@ -310,7 +322,29 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 						/*--------------------------------------*/
 						fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
 						/*--------------------------*/
-					}else
+						if( flag_ck )
+						{
+							unsigned int sum32,sum8,tmp;
+							checksum_cali(&write_buffer[offset],merge_offset + len_rb,&sum32,&sum8);
+							/* write */
+							tmp = 0xA1A2A3A4;
+							fwrite(&tmp,1,sizeof(tmp),fp_create);
+							tmp = 0xA5A6A7A8;
+							fwrite(&tmp,1,sizeof(tmp),fp_create);
+							tmp = sum32;
+							fwrite(&tmp,1,sizeof(tmp),fp_create);
+							tmp = sum8;
+							fwrite(&tmp,1,sizeof(tmp),fp_create);
+							tmp = 0xA9AAABAC;
+							fwrite(&tmp,1,sizeof(tmp),fp_create);
+							tmp = 0xADAEAFA0;
+							fwrite(&tmp,1,sizeof(tmp),fp_create);
+							/*--------------------------*/
+							len_rb += 6*4;
+							/*--------------------------*/
+						}
+					}
+					else
 					{
 						printf("merge offset postion error 0x%X 0x%X\r\n",write_count - offset,merge_offset);
 						return;
@@ -322,6 +356,27 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					/*--------------------------------------*/
 					fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
 					/*--------------------------*/
+                    if( flag_ck )
+					{
+						unsigned int sum32,sum8,tmp;
+						checksum_cali(&write_buffer[offset],write_count - offset,&sum32,&sum8);
+						/* write */
+						tmp = 0xA1A2A3A4;
+						fwrite(&tmp,1,sizeof(tmp),fp_create);
+						tmp = 0xA5A6A7A8;
+						fwrite(&tmp,1,sizeof(tmp),fp_create);
+						tmp = sum32;
+						fwrite(&tmp,1,sizeof(tmp),fp_create);
+						tmp = sum8;
+						fwrite(&tmp,1,sizeof(tmp),fp_create);
+						tmp = 0xA9AAABAC;
+						fwrite(&tmp,1,sizeof(tmp),fp_create);
+						tmp = 0xADAEAFA0;
+						fwrite(&tmp,1,sizeof(tmp),fp_create);
+						/*--------------------------*/
+						write_count += 6*4;
+						/*--------------------------*/
+					}
 				}
 				/* close */
 				fclose(fp_create);
@@ -637,7 +692,7 @@ int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 	unsigned int * axf_tmp = NULL;
 	unsigned int * axf_offset = NULL;
 	/*-------------------------------------------------*/
-	for( int i = 0 ; i < axf_len ; i ++ )
+	for( unsigned int i = 0 ; i < axf_len ; i ++ )
 	{
 		int j = 0;
 		/*-----------------*/
@@ -704,7 +759,7 @@ int axf_do(unsigned int old_one,unsigned int new_one)
 	/* ------------------ */
 	unsigned int * tmp = (unsigned int *)axf_buffer;
 	/*--------------------*/
-	for( int i = 0 ; i < axf_len/4 ; i ++ )
+	for( unsigned int i = 0 ; i < axf_len/4 ; i ++ )
 	{
 		if( tmp[i] == old_one )
 		{
@@ -717,3 +772,26 @@ int axf_do(unsigned int old_one,unsigned int new_one)
 	/*------------------*/
 	return (-1);
 }
+/* int check sum */
+void checksum_cali(unsigned char * data,unsigned int len,unsigned int * sum32,unsigned int * sum8)
+{
+	unsigned char * pd_c = data;
+	unsigned int  * pd_i = (unsigned int *)data;
+
+	unsigned char sum_c  = 0;
+	unsigned int  sum_i  = 0;
+
+	for( unsigned int i = 0 ; i < len ; i ++ )
+	{
+		sum_c += pd_c[i];
+	}
+
+	for( unsigned int i = 0 ; i < len / 4 ; i ++ )
+	{
+		sum_i += pd_i[i];
+	}
+
+	*sum32 = sum_i;
+	*sum8  = sum_c;
+}
+/*---------------*/
