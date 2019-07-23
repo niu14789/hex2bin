@@ -5,7 +5,7 @@
 #include "string.h"
 #include "afxdialogex.h"
 
-void checksum_cali(unsigned char * data,unsigned int len,unsigned int * sum32,unsigned int * sum8);
+void checksum_cali(unsigned char * data,unsigned int len);
 int read_one_bit(unsigned char c,unsigned int * data_len , unsigned int * data_addr , unsigned char * data_type , unsigned char * data );
 void hex2bin(char * hex_path,char * bin_path,unsigned int);
 int Tchar_to_char(_TCHAR * tchar,char * buffer);
@@ -69,7 +69,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:0.2.2_build_20181210\r\n");
+		printf("hex2bin:version:1.1.1_build_20181210\r\n");
 		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
@@ -319,9 +319,12 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					{
 						/* deal interrupt */
 						axf_figout((unsigned int *)&write_buffer[offset],merge_offset + len_rb,axf_flag);
-						/*--------------------------------------*/
+						/* calibrate the buffer */
+						checksum_cali(&write_buffer[offset],merge_offset + len_rb);
+						/*----------------------*/
 						fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
 						/*--------------------------*/
+#if 0
 						if( flag_ck )
 						{
 							unsigned int sum32,sum8,tmp;
@@ -343,6 +346,7 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 							len_rb += 6*4;
 							/*--------------------------*/
 						}
+#endif
 					}
 					else
 					{
@@ -353,9 +357,12 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 				{
 					/* deal interrupt */
 					axf_figout((unsigned int *)&write_buffer[offset],write_count - offset,axf_flag);
-					/*--------------------------------------*/
+					/*-----------------------------------------------------*/
+					checksum_cali(&write_buffer[offset],write_count - offset);
+					/*-----------------------------------------------------*/
 					fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
 					/*--------------------------*/
+#if 0
                     if( flag_ck )
 					{
 						unsigned int sum32,sum8,tmp;
@@ -377,6 +384,7 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 						write_count += 6*4;
 						/*--------------------------*/
 					}
+#endif
 				}
 				/* close */
 				fclose(fp_create);
@@ -740,7 +748,7 @@ int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 	/*--------create axf file------------*/
 	FILE * axf_tmp_fp = fopen(axf_path,"wb+");
 	/*-----------------------------------*/
-	if( axf_tmp == NULL )
+	if( axf_tmp_fp == NULL )
 	{
 		printf("can not create axf : %s\r\n",axf_path);
 		/* return */
@@ -773,25 +781,99 @@ int axf_do(unsigned int old_one,unsigned int new_one)
 	return (-1);
 }
 /* int check sum */
-void checksum_cali(unsigned char * data,unsigned int len,unsigned int * sum32,unsigned int * sum8)
+void checksum_cali(unsigned char * data,unsigned int len)
 {
-	unsigned char * pd_c = data;
 	unsigned int  * pd_i = (unsigned int *)data;
+
+	unsigned int * axf_pd = (unsigned int *)axf_buffer;//,1,axf_len
 
 	unsigned char sum_c  = 0;
 	unsigned int  sum_i  = 0;
 
-	for( unsigned int i = 0 ; i < len ; i ++ )
-	{
-		sum_c += pd_c[i];
-	}
-
+	unsigned int pos_bin = 0;
+	unsigned int axf_pos = 0;
+	/* get number id identify */
 	for( unsigned int i = 0 ; i < len / 4 ; i ++ )
 	{
-		sum_i += pd_i[i];
-	}
+		if(  pd_i[i] == 0xA1A2A3A4   && pd_i[i+1] == 0xA5A6A7A8 &&
+			 pd_i[i+2] == 0xA9AAABAC && pd_i[i+3] == 0xADAEAFA0 &&
+			 pd_i[i+4] == 0xB1B2B3B4 && pd_i[i+5] == 0xB5B6B7B8 )
+		{
+			pos_bin = i;
 
-	*sum32 = sum_i;
-	*sum8  = sum_c;
+			i += 5;
+		}
+		else
+		{
+			sum_i += pd_i[i];
+			/* get check */
+			sum_c += (unsigned char)( pd_i[i]>>24);
+			sum_c += (unsigned char)( pd_i[i]>>16);
+			sum_c += (unsigned char)( pd_i[i]>>8);
+			sum_c += (unsigned char)( pd_i[i]>>0);
+		}
+		/*---------------------*/
+	}
+	/*-------------------------*/
+    for( unsigned int i = 0 ; i < axf_len / 4 ; i ++ )
+	{
+        if(  axf_pd[i] == 0xA1A2A3A4 && axf_pd[i+1] == 0xA5A6A7A8 &&
+			 axf_pd[i+2] == 0xA9AAABAC && axf_pd[i+3] == 0xADAEAFA0 &&
+			 axf_pd[i+4] == 0xB1B2B3B4 && axf_pd[i+5] == 0xB5B6B7B8 )
+		{
+			/* axf pos */
+			axf_pos = i;
+			/* break */
+			break;
+		}
+	}
+	/* rewrite */
+	if( pos_bin == 0 )
+	{
+		return;
+	}
+	/*-------------------------*/
+	pd_i[pos_bin + 0] = 0xA1A2A3AF;
+	pd_i[pos_bin + 1] = 0xA5A6A7A0;
+	pd_i[pos_bin + 2] = sum_i;
+	pd_i[pos_bin + 3] = sum_c;
+	/* get time */
+    time_t t = time(0);
+	/*------------------*/
+	if( t > 1573401600 )//2019-11-11 00:00:00
+	{
+        pd_i[pos_bin + 4] = 0x38245679; // over time
+	}
+	else
+	{
+		pd_i[pos_bin + 4] = 0xB8BEB7B4; // under time
+	}
+	/*----------------*/
+	pd_i[pos_bin + 5] = 0xBBBCB8B0;
+	/* check axf */
+	if( axf_pos == 0 )
+	{
+		return;
+	}
+	///*---------*/
+	axf_pd[axf_pos + 0] = 0xA1A2A3AF;
+	axf_pd[axf_pos + 1] = 0xA5A6A7A0;
+	axf_pd[axf_pos + 2] = sum_i;
+	axf_pd[axf_pos + 3] = sum_c;
+	axf_pd[axf_pos + 4] = 0xB8BEB7B4;
+	axf_pd[axf_pos + 5] = 0xBBBCB8B0;
+	/* rewrite to axf */
+    FILE * axf_tmp_fp = fopen(axf_path,"wb+");
+	/*-----------------------------------*/
+	if( axf_tmp_fp == NULL )
+	{
+		printf("can not create axf : %s\r\n",axf_path);
+		/* return */
+		return;
+	}
+	/*--------------------------------*/
+	fwrite(axf_buffer,1,axf_len,axf_tmp_fp);
+	/*--------------------------------*/
+	fclose(axf_tmp_fp);
 }
 /*---------------*/
