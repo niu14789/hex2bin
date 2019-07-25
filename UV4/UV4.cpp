@@ -69,7 +69,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:1.1.1_build_20181210\r\n");
+		printf("hex2bin:version:1.1.2_build_20181210\r\n");
 		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
@@ -687,15 +687,33 @@ unsigned short get_version(unsigned char * data,unsigned int len )
 /*-----------------------------------------------------*/
 int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 {
+	const unsigned int __FS_bootloader_export[3] = {0x37EAD542,0x02,0xFEFD3E15};
 	/*-------------------*/
 	if( mode == 0 )
 	{
 		return (-1);
 	}
 	/*------------------*/
+	unsigned char new_bl_flag = 0;
+	/* get newbootloader */
+	for( unsigned int i = 0 ; i < 0x2000 / 4 ; i ++ )
+	{
+		if( bin_data[i] == __FS_bootloader_export[0] && bin_data[ i + 2 ] == __FS_bootloader_export[2] )
+		{
+			new_bl_flag = 1;
+			break;
+		}
+	}
 	unsigned int bin_id[16];
 	/*------------------*/
-	memcpy(bin_id,bin_data,sizeof(bin_id));
+	if( new_bl_flag == 1 )
+	{
+	    memcpy(bin_id,&bin_data[0x2000/4],sizeof(bin_id));
+	}
+	else
+	{
+		memcpy(bin_id,bin_data,sizeof(bin_id));
+	}
 	/* get axf offset */
 	unsigned int * axf_tmp = NULL;
 	unsigned int * axf_offset = NULL;
