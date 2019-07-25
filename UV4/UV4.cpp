@@ -69,7 +69,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		command = 4;
 	}else
 	{
-		printf("hex2bin:version:1.1.2_build_20181210\r\n");
+		printf("hex2bin:version:1.1.3_build_20181210\r\n");
 		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
 		printf("[-f] [-offset] [addr]\r\n");
 		printf("[-b] [-offset] [addr]\r\n");
@@ -708,12 +708,10 @@ int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 	/*------------------*/
 	if( new_bl_flag == 1 )
 	{
-	    memcpy(bin_id,&bin_data[0x2000/4],sizeof(bin_id));
+	   bin_data += 0x2000 / 4 ;
 	}
-	else
-	{
-		memcpy(bin_id,bin_data,sizeof(bin_id));
-	}
+	/* copy data */
+	memcpy(bin_id,bin_data,sizeof(bin_id));
 	/* get axf offset */
 	unsigned int * axf_tmp = NULL;
 	unsigned int * axf_offset = NULL;
