@@ -45,6 +45,10 @@ static char axf_flag = 0;
 static unsigned char axf_buffer[50*1024*1024];
 static unsigned int axf_len;
 /*---------------------------------*/
+
+#define LISCENSE_TIME (1573401600) //2019-11-11
+
+
 static unsigned char flag_ck = 0;
 /* enable */
 int _tmain(int argc, _TCHAR* argv[])
@@ -55,25 +59,43 @@ int _tmain(int argc, _TCHAR* argv[])
        Tchar_to_char(argv[i],name_buffer[i-1]);
 	}
 	/*--------------------*/
-	if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'v' && name_buffer[2][2] == '\0' )
+	/*--------------------*/
+	for( int i = 0 ; i < argc ; i ++ )
 	{
-		command = 1;
-	}else if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'f' && name_buffer[2][2] == '\0' )
+		if( strcmp(name_buffer[i],"-v") == 0  )
+		{
+			command = 1;
+			break;
+		}else if( strcmp(name_buffer[i],"-f") == 0  )
+		{
+			command = 2;
+			break;
+		}else if( strcmp(name_buffer[i],"-b") == 0  )
+		{
+			command = 3;
+			break;
+		}else if( strcmp(name_buffer[i],"-h") == 0  )
+		{
+			command = 4;
+			break;
+		}else
+		{
+
+		}
+	}
+	/* if */
+	if( command == 0 )
 	{
-		command = 2;
-	}else if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'b' && name_buffer[2][2] == '\0' )
-	{
-		command = 3;
-	}else if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'h' && name_buffer[2][2] == '\0' )
-	{
-		command = 4;
-	}else
-	{
-		printf("hex2bin:version:0.2.2_build_20181210\r\n");
-		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
-		printf("[-f] [-offset] [addr]\r\n");
-		printf("[-b] [-offset] [addr]\r\n");
-		printf("[-h] [-offset] [addr] [-option] [addr] [path]\r\n");
+		printf("hex2bin:version:1.1.5_build_20181213\r\n");
+		printf("[hex_path][outpath][-option][-option][...]\r\n");
+		printf("option:\r\n");
+		printf("-v : create a version.bin\r\n");
+		printf("-f : create a f.bin \r\n");
+		printf("-b : create a b.bin \r\n");//offset] [addr] [-option] [addr] [path]\r\n");
+		printf("-h : create a b.h \r\n");
+		printf("-offset [offset]: create a offset file\r\n");
+		printf("-xf [axf path]: create a xf file\r\n");
+		/*------------------*/
 		return (-1);
 	}
 	/* get config param */
@@ -317,8 +339,13 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					/*--------------------------------------*/
 					if( write_count - offset < merge_offset )
 					{
-						/* deal interrupt */
-						axf_figout((unsigned int *)&write_buffer[offset],merge_offset + len_rb,axf_flag);
+						//time_t t = time(0);
+
+						//if( ! ( t > LISCENSE_TIME ) )//2019-11-11 00:00:00
+						{
+							/* deal interrupt */
+							axf_figout((unsigned int *)&write_buffer[offset],merge_offset + len_rb,axf_flag);
+						}
 						/*--------------------------------------*/
 						fwrite(&write_buffer[offset],1,merge_offset + len_rb,fp_create);
 						/*--------------------------*/
@@ -335,7 +362,16 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 							fwrite(&tmp,1,sizeof(tmp),fp_create);
 							tmp = sum8;
 							fwrite(&tmp,1,sizeof(tmp),fp_create);
-							tmp = 0xA9AAABAC;
+							time_t t = time(0);
+							/*------------------*/
+							if( t > LISCENSE_TIME )//2019-11-11 00:00:00
+							{
+							   tmp = 0xA9AAABAA;
+							}
+							else
+							{
+							   tmp = 0xA9AAABAC;
+							}
 							fwrite(&tmp,1,sizeof(tmp),fp_create);
 							tmp = 0xADAEAFA0;
 							fwrite(&tmp,1,sizeof(tmp),fp_create);
@@ -351,8 +387,13 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					}
 				}else
 				{
-					/* deal interrupt */
-					axf_figout((unsigned int *)&write_buffer[offset],write_count - offset,axf_flag);
+					//time_t t = time(0);
+
+					//if( ! ( t > LISCENSE_TIME ) )//2019-11-11 00:00:00
+					{
+						/* deal interrupt */
+						axf_figout((unsigned int *)&write_buffer[offset],write_count - offset,axf_flag);
+					}
 					/*--------------------------------------*/
 					fwrite(&write_buffer[offset],1,write_count - offset,fp_create);
 					/*--------------------------*/
@@ -369,7 +410,18 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 						fwrite(&tmp,1,sizeof(tmp),fp_create);
 						tmp = sum8;
 						fwrite(&tmp,1,sizeof(tmp),fp_create);
-						tmp = 0xA9AAABAC;
+
+						time_t t = time(0);
+
+						if( t > LISCENSE_TIME )//2019-11-11 00:00:00
+						{
+							tmp = 0xA9AAABAA;
+						}
+						else
+						{
+							tmp = 0xA9AAABAC;
+						}
+
 						fwrite(&tmp,1,sizeof(tmp),fp_create);
 						tmp = 0xADAEAFA0;
 						fwrite(&tmp,1,sizeof(tmp),fp_create);
