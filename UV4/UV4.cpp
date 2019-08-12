@@ -55,36 +55,58 @@ int _tmain(int argc, _TCHAR* argv[])
        Tchar_to_char(argv[i],name_buffer[i-1]);
 	}
 	/*--------------------*/
-	if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'v' && name_buffer[2][2] == '\0' )
+	for( int i = 0 ; i < argc ; i ++ )
 	{
-		command = 1;
-	}else if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'f' && name_buffer[2][2] == '\0' )
+		if( strcmp(name_buffer[i],"-v") == 0  )
+		{
+			command = 1;
+			break;
+		}else if( strcmp(name_buffer[i],"-f") == 0  )
+		{
+			command = 2;
+			break;
+		}else if( strcmp(name_buffer[i],"-b") == 0  )
+		{
+			command = 3;
+			break;
+		}else if( strcmp(name_buffer[i],"-h") == 0  )
+		{
+			command = 4;
+			break;
+		}else
+		{
+
+		}
+	}
+	/* if */
+	if( command == 0 )
 	{
-		command = 2;
-	}else if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'b' && name_buffer[2][2] == '\0' )
-	{
-		command = 3;
-	}else if( name_buffer[2][0] == '-' && name_buffer[2][1] == 'h' && name_buffer[2][2] == '\0' )
-	{
-		command = 4;
-	}else
-	{
-		printf("hex2bin:version:1.1.3_build_20181210\r\n");
-		printf("[-v] [-offset] [addr] [-xf] [path]\r\n");
-		printf("[-f] [-offset] [addr]\r\n");
-		printf("[-b] [-offset] [addr]\r\n");
-		printf("[-h] [-offset] [addr] [-option] [addr] [path]\r\n");
+		printf("hex2bin:version:1.1.4_build_20181212\r\n");
+		printf("[hex_path][outpath][-option][-option][...]\r\n");
+		printf("option:\r\n");
+		printf("-v : create a version.bin\r\n");
+		printf("-f : create a f.bin \r\n");
+		printf("-b : create a b.bin \r\n");//offset] [addr] [-option] [addr] [path]\r\n");
+		printf("-h : create a b.h \r\n");
+		printf("-offset [offset]: create a offset file\r\n");
+		printf("-xf [axf path]: create a xf file\r\n");
+		/*------------------*/
 		return (-1);
 	}
-	/* get config param */
-	if( strcmp(name_buffer[3],"-offset") == 0 )
+	
+    /* get axf addr or not */
+	for( int i = 0 ; i < argc ; i ++ )
 	{
-		offset_enable = 1;
-		/*----------------*/
-		if( sscanf(name_buffer[4],"0x%x",&offset) != 1 )
+		/* get config param */
+		if( strcmp(name_buffer[i],"-offset") == 0 )
 		{
-			printf("Can not transfer offset addr : %s  0x%x",name_buffer[3],offset);
-			return (-1);
+			offset_enable = 1;
+			/*----------------*/
+			if( sscanf(name_buffer[i+1],"0x%x",&offset) != 1 )
+			{
+				printf("Can not transfer offset addr : %s  0x%x",name_buffer[i],offset);
+				return (-1);
+			}
 		}
 	}
 	/* get axf addr or not */
@@ -281,7 +303,7 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 			/*-----------------------*/
 			if( fp_create == NULL )
 			{
-				printf("file create file\r\n");
+				printf("file create fail\r\n");
 				return;
 			}
 			/*--------------------------*/
