@@ -46,6 +46,9 @@ static unsigned char axf_buffer[50*1024*1024];
 static unsigned int axf_len;
 /*---------------------------------*/
 static unsigned char flag_ck = 0;
+/* check */
+static unsigned char flag_once_g = 0;
+static unsigned int  offer_addr_axf = 0;
 /* enable */
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -81,7 +84,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	/* if */
 	if( command == 0 )
 	{
-		printf("hex2bin:version:1.1.4_build_20181212\r\n");
+		printf("hex2bin:version:1.1.5_build_20181212\r\n");
 		printf("[hex_path][outpath][-option][-option][...]\r\n");
 		printf("option:\r\n");
 		printf("-v : create a version.bin\r\n");
@@ -252,6 +255,12 @@ void hex2bin(char * hex_path,char * bin_path,unsigned int cmd)
 					/*--------------*/
 				}else if( data_type_hex == 0x00 )
 				{
+					if( flag_once_g == 0 )
+					{
+						flag_once_g = 1;
+						offer_addr_axf = data_addr_hex;
+						printf("hex offset:0x%X\r\n",offer_addr_axf);
+					}
 					memcpy(&write_buffer[write_base_addr+data_addr_hex],data_hex,data_len_hex);
 					write_count = write_base_addr + data_addr_hex + data_len_hex;
 				}else if( data_type_hex == 0x01 )
@@ -715,6 +724,10 @@ int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 	{
 		return (-1);
 	}
+
+	unsigned int bin_id[16];
+
+#if 0
 	/*------------------*/
 	unsigned char new_bl_flag = 0;
 	/* get newbootloader */
@@ -726,12 +739,19 @@ int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 			break;
 		}
 	}
-	unsigned int bin_id[16];
+	
 	/*------------------*/
 	if( new_bl_flag == 1 )
 	{
 	   bin_data += 0x2000 / 4 ;
 	}
+#endif
+
+	if( offer_addr_axf != 0 )
+	{
+		bin_data += offer_addr_axf / 4;
+	}
+
 	/* copy data */
 	memcpy(bin_id,bin_data,sizeof(bin_id));
 	/* get axf offset */
