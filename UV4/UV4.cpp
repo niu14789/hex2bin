@@ -86,7 +86,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	/* if */
 	if( command == 0 )
 	{
-		printf("hex2bin:version:1.1.5_build_20181213\r\n");
+		printf("hex2bin:version:1.2.9_build_20181213\r\n");
 		printf("[hex_path][outpath][-option][-option][...]\r\n");
 		printf("option:\r\n");
 		printf("-v : create a version.bin\r\n");
