@@ -39,6 +39,7 @@ static unsigned char offset_enable = 0;
 static unsigned char merge_cmd_type = 0;
 static unsigned int merge_offset = 0;
 static char * irom_path;
+static unsigned int aof_offset = 0;
 /* irom path */
 static char * axf_path;
 static char axf_flag = 0;
@@ -86,7 +87,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	/* if */
 	if( command == 0 )
 	{
-		printf("hex2bin:version:1.2.9_build_20181213\r\n");
+		printf("hex2bin:version:1.3.1_build_20181213\r\n");
 		printf("[hex_path][outpath][-option][-option][...]\r\n");
 		printf("option:\r\n");
 		printf("-v : create a version.bin\r\n");
@@ -95,18 +96,34 @@ int _tmain(int argc, _TCHAR* argv[])
 		printf("-h : create a b.h \r\n");
 		printf("-offset [offset]: create a offset file\r\n");
 		printf("-xf [axf path]: create a xf file\r\n");
+		printf("-aof [0xAOF]:set axf file match addr offset\r\n");
 		/*------------------*/
 		return (-1);
 	}
-	/* get config param */
-	if( strcmp(name_buffer[3],"-offset") == 0 )
+	for( int i = 0 ; i < argc ; i ++ )
 	{
-		offset_enable = 1;
-		/*----------------*/
-		if( sscanf(name_buffer[4],"0x%x",&offset) != 1 )
+		/* get config param */
+		if( strcmp(name_buffer[i],"-offset") == 0 )
 		{
-			printf("Can not transfer offset addr : %s  0x%x",name_buffer[3],offset);
-			return (-1);
+			offset_enable = 1;
+			/*----------------*/
+			if( sscanf(name_buffer[i+1],"0x%x",&offset) != 1 )
+			{
+				printf("Can not transfer offset addr : %s  0x%x",name_buffer[i],offset);
+				return (-1);
+			}
+		}
+	}
+  	/* get axf addr or not */
+	for( int i = 0 ; i < argc ; i ++ )
+	{
+		if( strcmp(name_buffer[i],"-aof") == 0 )
+		{
+            if( sscanf(name_buffer[i+1],"0x%x",&aof_offset) != 1 )
+			{
+				printf("Can not transfer aof offset addr : %s  0x%x",name_buffer[i],aof_offset);
+				return (-1);
+			}
 		}
 	}
 	/* get axf addr or not */
@@ -739,6 +756,13 @@ int axf_figout(unsigned int * bin_data,unsigned int len,unsigned int mode)
 	/*------------------*/
 	unsigned int bin_id[16];
 	/*------------------*/
+
+	if( aof_offset > 0 )
+	{
+		bin_data += aof_offset / 4;
+		printf("hex of:0x%X\r\n",aof_offset); 
+	}
+
 	memcpy(bin_id,bin_data,sizeof(bin_id));
 	/* get axf offset */
 	unsigned int * axf_tmp = NULL;
