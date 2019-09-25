@@ -896,16 +896,7 @@ void checksum_cali(unsigned char * data,unsigned int len)
 	pd_i[pos_bin + 2] = sum_i;
 	pd_i[pos_bin + 3] = sum_c;
 	/* get time */
-    time_t t = time(0);
-	/*------------------*/
-	if( t > 1573401600 )//2019-11-11 00:00:00
-	{
-        pd_i[pos_bin + 4] = 0x38245679; // over time
-	}
-	else
-	{
-		pd_i[pos_bin + 4] = 0xB8BEB7B4; // under time
-	}
+	pd_i[pos_bin + 4] = 0xB8BEB7B4; // under time
 	/*----------------*/
 	pd_i[pos_bin + 5] = 0xBBBCB8B0;
 	/* check axf */
